@@ -3,6 +3,7 @@ import GraphCanvas from './components/GraphCanvas';
 import ControlPanel from './components/ControlPanel';
 import StepInfo from './components/StepInfo';
 import { fordFulkerson } from './algorithm/fordFulkerson';
+import { getMumbaiSample, FLOOD_SCENARIOS, TOTAL_POPULATION_AT_RISK } from './data/mumbaiEvacuationNetwork';
 
 export default function App() {
   const [nodes, setNodes] = useState([]);
@@ -20,6 +21,12 @@ export default function App() {
   const [algorithmDone, setAlgorithmDone] = useState(false);
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const autoPlayRef = useRef(null);
+
+  // Mumbai flood scenario state
+  const [isMumbaiScenario, setIsMumbaiScenario] = useState(false);
+  const [floodSeverity, setFloodSeverity] = useState('mild');
+  const [nodeMetadata, setNodeMetadata] = useState([]);
+  const [edgeMetadata, setEdgeMetadata] = useState([]);
 
   const currentStep = isRunning && steps[currentStepIndex] ? steps[currentStepIndex] : null;
 
@@ -70,7 +77,6 @@ export default function App() {
     if (currentStepIndex < steps.length - 1) {
       setCurrentStepIndex((prev) => prev + 1);
     } else {
-      // Algorithm finished
       setIsRunning(false);
       setAlgorithmDone(true);
       setIsAutoPlaying(false);
@@ -100,6 +106,9 @@ export default function App() {
     setIsRunning(false);
     setAlgorithmDone(false);
     setIsAutoPlaying(false);
+    setIsMumbaiScenario(false);
+    setNodeMetadata([]);
+    setEdgeMetadata([]);
   }, []);
 
   const handleLoadSample = useCallback(
@@ -109,8 +118,59 @@ export default function App() {
       setEdges(sample.edges);
       setSource(sample.source);
       setSink(sample.sink);
+      if (sample.isMumbai) {
+        setIsMumbaiScenario(true);
+        setNodeMetadata(sample.nodeMetadata || []);
+        setEdgeMetadata(sample.edges || []);
+      }
     },
     [handleReset]
+  );
+
+  // Load Mumbai scenario with specific severity
+  const handleLoadMumbai = useCallback(
+    (severity) => {
+      handleReset();
+      setFloodSeverity(severity);
+      const sample = getMumbaiSample(severity);
+      setNodes(sample.nodes);
+      setEdges(sample.edges);
+      setSource(sample.source);
+      setSink(sample.sink);
+      setIsMumbaiScenario(true);
+      setNodeMetadata(sample.nodeMetadata || []);
+      setEdgeMetadata(sample.edges || []);
+    },
+    [handleReset]
+  );
+
+  // Change severity on existing Mumbai scenario
+  const handleChangeSeverity = useCallback(
+    (severity) => {
+      // Reset algorithm state but keep Mumbai loaded
+      if (autoPlayRef.current) {
+        clearInterval(autoPlayRef.current);
+        autoPlayRef.current = null;
+      }
+      setSteps([]);
+      setCurrentStepIndex(-1);
+      setMaxFlow(null);
+      setMinCutEdges([]);
+      setFinalFlow({});
+      setIsRunning(false);
+      setAlgorithmDone(false);
+      setIsAutoPlaying(false);
+
+      setFloodSeverity(severity);
+      const sample = getMumbaiSample(severity);
+      setNodes(sample.nodes);
+      setEdges(sample.edges);
+      setSource(sample.source);
+      setSink(sample.sink);
+      setNodeMetadata(sample.nodeMetadata || []);
+      setEdgeMetadata(sample.edges || []);
+    },
+    []
   );
 
   const handleAutoPlay = useCallback(() => {
@@ -121,7 +181,6 @@ export default function App() {
       setCurrentStepIndex((prev) => {
         setSteps((currentSteps) => {
           if (prev >= currentSteps.length - 1) {
-            // Done
             clearInterval(autoPlayRef.current);
             autoPlayRef.current = null;
             setIsRunning(false);
@@ -141,53 +200,15 @@ export default function App() {
       <header className="app-header">
         <div className="header-content">
           <h1>
-            <span className="logo-icon">🔀</span> Network Flow Optimizer
+            <span className="logo-icon">🌊</span> Mumbai Flood Evacuation Router
           </h1>
           <p className="subtitle">
-            Interactive Ford-Fulkerson Algorithm Simulator
+            Network Flow Optimization for Emergency Evacuation
           </p>
         </div>
       </header>
 
       <main className="app-main">
-        <div className="canvas-area">
-          <GraphCanvas
-            nodes={nodes}
-            edges={edges}
-            source={source}
-            sink={sink}
-            currentStep={currentStep}
-            showMinCut={algorithmDone}
-            minCutEdges={minCutEdges}
-            finalFlow={finalFlow}
-            algorithmDone={algorithmDone}
-          />
-          {(isRunning || algorithmDone) && (
-            <div className="step-info-overlay">
-              {isRunning && currentStep && (
-                <StepInfo
-                  currentStep={currentStep}
-                  currentStepIndex={currentStepIndex}
-                />
-              )}
-              {algorithmDone && (
-                <div className="done-badge">
-                  ✅ Max Flow = <strong>{maxFlow}</strong>
-                </div>
-              )}
-            </div>
-          )}
-          {nodes.length === 0 && (
-            <div className="empty-state">
-              <div className="empty-icon">🌐</div>
-              <p>Add nodes and edges to build your network graph</p>
-              <p className="empty-hint">
-                or load a <strong>Sample Test Case</strong> to get started
-              </p>
-            </div>
-          )}
-        </div>
-
         <div className="controls-area">
           <ControlPanel
             nodes={nodes}
@@ -204,6 +225,8 @@ export default function App() {
             onReset={handleReset}
             onLoadSample={handleLoadSample}
             onAutoPlay={handleAutoPlay}
+            onLoadMumbai={handleLoadMumbai}
+            onChangeSeverity={handleChangeSeverity}
             isRunning={isRunning}
             isAutoPlaying={isAutoPlaying}
             currentStepIndex={currentStepIndex}
@@ -211,7 +234,58 @@ export default function App() {
             maxFlow={maxFlow}
             minCutEdges={minCutEdges}
             algorithmDone={algorithmDone}
+            isMumbaiScenario={isMumbaiScenario}
+            floodSeverity={floodSeverity}
           />
+        </div>
+
+        <div className="canvas-area">
+          <GraphCanvas
+            nodes={nodes}
+            edges={edges}
+            source={source}
+            sink={sink}
+            currentStep={currentStep}
+            showMinCut={algorithmDone}
+            minCutEdges={minCutEdges}
+            finalFlow={finalFlow}
+            algorithmDone={algorithmDone}
+            isMumbaiScenario={isMumbaiScenario}
+            nodeMetadata={nodeMetadata}
+          />
+          {(isRunning || algorithmDone) && (
+            <div className="step-info-overlay">
+              {isRunning && currentStep && (
+                <StepInfo
+                  currentStep={currentStep}
+                  currentStepIndex={currentStepIndex}
+                  isMumbaiScenario={isMumbaiScenario}
+                  edgeMetadata={edgeMetadata}
+                  nodeMetadata={nodeMetadata}
+                />
+              )}
+              {algorithmDone && (
+                <StepInfo
+                  algorithmDone={true}
+                  maxFlow={maxFlow}
+                  minCutEdges={minCutEdges}
+                  isMumbaiScenario={isMumbaiScenario}
+                  edgeMetadata={edgeMetadata}
+                  nodeMetadata={nodeMetadata}
+                  totalPopulation={TOTAL_POPULATION_AT_RISK}
+                />
+              )}
+            </div>
+          )}
+          {nodes.length === 0 && (
+            <div className="empty-state">
+              <div className="empty-icon">🌐</div>
+              <p>Add nodes and edges to build your network graph</p>
+              <p className="empty-hint">
+                or load <strong>Mumbai Flood Evacuation</strong> to get started
+              </p>
+            </div>
+          )}
         </div>
       </main>
     </div>

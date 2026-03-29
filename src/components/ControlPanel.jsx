@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { FLOOD_SCENARIOS, TOTAL_POPULATION_AT_RISK, FLOODED_ZONE_COUNT } from '../data/mumbaiEvacuationNetwork';
 
 // ── Sample Test Case 1: Simple (4 nodes, max flow = 20) ──
 const SAMPLE_SIMPLE = {
@@ -114,6 +115,8 @@ export default function ControlPanel({
     onReset,
     onLoadSample,
     onAutoPlay,
+    onLoadMumbai,
+    onChangeSeverity,
     isRunning,
     isAutoPlaying,
     currentStepIndex,
@@ -121,6 +124,8 @@ export default function ControlPanel({
     maxFlow,
     minCutEdges,
     algorithmDone,
+    isMumbaiScenario,
+    floodSeverity,
 }) {
     const [newNodeName, setNewNodeName] = useState('');
     const [edgeSource, setEdgeSource] = useState('');
@@ -143,11 +148,85 @@ export default function ControlPanel({
         }
     };
 
+    // Count active (non-zero capacity, non-virtual) roads for Mumbai
+    const activeRoads = isMumbaiScenario
+        ? edges.filter((e) => e.capacity > 0 && e.roadType && e.roadType !== 'virtual').length
+        : 0;
+
+    // Estimated evacuation time
+    const evacTime =
+        isMumbaiScenario && maxFlow && maxFlow > 0
+            ? (TOTAL_POPULATION_AT_RISK / maxFlow).toFixed(1)
+            : '—';
+
     return (
         <div className="control-panel">
             <h2 className="panel-title">
                 <span className="title-icon">⚡</span> Controls
             </h2>
+
+            {/* ── Mumbai Flood Evacuation Scenario ── */}
+            <div className={`control-section ${isMumbaiScenario ? 'flood-scenario-section' : ''}`}>
+                <h3><span className="section-icon">🌊</span> Mumbai Flood Evacuation</h3>
+                <button
+                    onClick={() => onLoadMumbai(floodSeverity || 'mild')}
+                    disabled={isRunning}
+                    className={`btn-sample mumbai-scenario ${isMumbaiScenario ? 'active' : ''}`}
+                >
+                    <span className="sample-icon">🏙️</span>
+                    <span className="sample-text">
+                        <span className="sample-name">Load Mumbai Network</span>
+                        <span className="sample-desc">18 nodes, real road network — Monsoon evacuation</span>
+                    </span>
+                </button>
+
+                {isMumbaiScenario && (
+                    <>
+                        <h3 style={{ marginTop: '10px' }}><span className="section-icon">⚠</span> Flood Severity</h3>
+                        <div className="severity-selector">
+                            {['mild', 'moderate', 'severe'].map((s) => (
+                                <button
+                                    key={s}
+                                    className={`severity-btn severity-${s} ${floodSeverity === s ? 'active' : ''}`}
+                                    onClick={() => onChangeSeverity(s)}
+                                    disabled={isRunning}
+                                >
+                                    {s.charAt(0).toUpperCase() + s.slice(1)}
+                                </button>
+                            ))}
+                        </div>
+                        <p className="scenario-desc">
+                            {FLOOD_SCENARIOS[floodSeverity]?.description || ''}
+                        </p>
+                    </>
+                )}
+
+                {/* Stats Cards */}
+                {isMumbaiScenario && (
+                    <div className="stats-grid">
+                        <div className="stat-card">
+                            <div className="stat-value">{FLOODED_ZONE_COUNT}</div>
+                            <div className="stat-label">Flooded Zones</div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-value">{activeRoads}</div>
+                            <div className="stat-label">Active Roads</div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-value" style={{ color: maxFlow ? '#057A55' : '#1A56DB' }}>
+                                {maxFlow != null ? maxFlow : '—'}
+                            </div>
+                            <div className="stat-label">Max Flow</div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-value" style={{ color: evacTime !== '—' ? '#D97706' : '#1A56DB' }}>
+                                {evacTime !== '—' ? `${evacTime}h` : '—'}
+                            </div>
+                            <div className="stat-label">Est. Evacuation</div>
+                        </div>
+                    </div>
+                )}
+            </div>
 
             {/* ── Add Node ── */}
             <div className="control-section">
@@ -168,14 +247,16 @@ export default function ControlPanel({
                 </div>
                 {nodes.length > 0 && (
                     <div className="node-list">
-                        {nodes.map((n) => (
-                            <span
-                                key={n}
-                                className={`node-chip ${n === source ? 'source-chip' : n === sink ? 'sink-chip' : ''}`}
-                            >
-                                {n}
-                            </span>
-                        ))}
+                        {nodes
+                            .filter((n) => n !== 'super_source' && n !== 'super_sink')
+                            .map((n) => (
+                                <span
+                                    key={n}
+                                    className={`node-chip ${n === source ? 'source-chip' : n === sink ? 'sink-chip' : ''}`}
+                                >
+                                    {n}
+                                </span>
+                            ))}
                     </div>
                 )}
             </div>
@@ -219,7 +300,7 @@ export default function ControlPanel({
                         Connect
                     </button>
                 </div>
-                {edges.length > 0 && (
+                {edges.length > 0 && !isMumbaiScenario && (
                     <div className="edge-table-wrap">
                         <table className="edge-table">
                             <thead>
@@ -246,38 +327,40 @@ export default function ControlPanel({
             </div>
 
             {/* ── Source & Sink ── */}
-            <div className="control-section">
-                <h3><span className="section-icon">◎</span> Source & Sink</h3>
-                <div className="input-row">
-                    <label className="select-label source-label">S</label>
-                    <select
-                        value={source}
-                        onChange={(e) => onSetSource(e.target.value)}
-                        disabled={isRunning || nodes.length === 0}
-                    >
-                        <option value="">Source</option>
-                        {nodes.map((n) => (
-                            <option key={n} value={n}>{n}</option>
-                        ))}
-                    </select>
+            {!isMumbaiScenario && (
+                <div className="control-section">
+                    <h3><span className="section-icon">◎</span> Source & Sink</h3>
+                    <div className="input-row">
+                        <label className="select-label source-label">S</label>
+                        <select
+                            value={source}
+                            onChange={(e) => onSetSource(e.target.value)}
+                            disabled={isRunning || nodes.length === 0}
+                        >
+                            <option value="">Source</option>
+                            {nodes.map((n) => (
+                                <option key={n} value={n}>{n}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="input-row" style={{ marginTop: '6px' }}>
+                        <label className="select-label sink-label">T</label>
+                        <select
+                            value={sink}
+                            onChange={(e) => onSetSink(e.target.value)}
+                            disabled={isRunning || nodes.length === 0}
+                        >
+                            <option value="">Sink</option>
+                            {nodes.map((n) => (
+                                <option key={n} value={n}>{n}</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
-                <div className="input-row" style={{ marginTop: '6px' }}>
-                    <label className="select-label sink-label">T</label>
-                    <select
-                        value={sink}
-                        onChange={(e) => onSetSink(e.target.value)}
-                        disabled={isRunning || nodes.length === 0}
-                    >
-                        <option value="">Sink</option>
-                        {nodes.map((n) => (
-                            <option key={n} value={n}>{n}</option>
-                        ))}
-                    </select>
-                </div>
-            </div>
+            )}
 
             {/* ── Graph Info ── */}
-            {nodes.length > 0 && (
+            {nodes.length > 0 && !isMumbaiScenario && (
                 <div className="graph-info-bar" style={{ padding: '0 2px', marginBottom: '12px' }}>
                     <span className="info-chip">
                         Nodes: <span className="info-val">{nodes.length}</span>
@@ -286,10 +369,10 @@ export default function ControlPanel({
                         Edges: <span className="info-val">{edges.length}</span>
                     </span>
                     {source && <span className="info-chip">
-                        Source: <span className="info-val" style={{ color: 'var(--accent-green)' }}>{source}</span>
+                        Source: <span className="info-val" style={{ color: '#057A55' }}>{source}</span>
                     </span>}
                     {sink && <span className="info-chip">
-                        Sink: <span className="info-val" style={{ color: 'var(--accent-red)' }}>{sink}</span>
+                        Sink: <span className="info-val" style={{ color: '#E02424' }}>{sink}</span>
                     </span>}
                 </div>
             )}
@@ -365,15 +448,33 @@ export default function ControlPanel({
                         <span className="result-label">Maximum Flow</span>
                         <span className="result-value">{maxFlow}</span>
                     </div>
+                    {isMumbaiScenario && (
+                        <div className="result-card" style={{ borderColor: 'rgba(217, 119, 6, 0.2)' }}>
+                            <span className="result-label">Est. Evacuation Time</span>
+                            <span className="result-value" style={{ color: '#D97706' }}>
+                                {evacTime}h
+                            </span>
+                        </div>
+                    )}
                     {minCutEdges && minCutEdges.length > 0 && (
                         <div className="min-cut-list">
-                            <span className="result-label">Minimum Cut Edges</span>
-                            {minCutEdges.map((e, i) => (
-                                <div key={i} className="min-cut-edge">
-                                    {e.source} → {e.target}{' '}
-                                    <span className="cut-cap">(cap: {e.capacity})</span>
-                                </div>
-                            ))}
+                            <span className="result-label">
+                                {isMumbaiScenario ? 'Bottleneck Roads (Min-Cut)' : 'Minimum Cut Edges'}
+                            </span>
+                            {minCutEdges.map((e, i) => {
+                                const road = isMumbaiScenario
+                                    ? edges.find((ed) => ed.source === e.source && ed.target === e.target)
+                                    : null;
+                                return (
+                                    <div key={i} className="min-cut-edge">
+                                        {isMumbaiScenario && road?.roadName
+                                            ? `${road.roadName}: `
+                                            : ''}
+                                        {e.source} → {e.target}{' '}
+                                        <span className="cut-cap">(cap: {e.capacity})</span>
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
                 </div>
@@ -404,30 +505,61 @@ export default function ControlPanel({
             <div className="control-section legend">
                 <h3><span className="section-icon">◆</span> Legend</h3>
                 <div className="legend-grid">
-                    <div className="legend-item">
-                        <span className="legend-color" style={{ background: '#10b981' }}></span>
-                        Source
-                    </div>
-                    <div className="legend-item">
-                        <span className="legend-color" style={{ background: '#f87171' }}></span>
-                        Sink
-                    </div>
-                    <div className="legend-item">
-                        <span className="legend-color" style={{ background: '#38bdf8' }}></span>
-                        Aug. Path
-                    </div>
-                    <div className="legend-item">
-                        <span className="legend-color" style={{ background: '#fbbf24' }}></span>
-                        Bottleneck
-                    </div>
-                    <div className="legend-item">
-                        <span className="legend-color" style={{ background: '#f87171', borderStyle: 'dashed' }}></span>
-                        Min-Cut
-                    </div>
-                    <div className="legend-item">
-                        <span className="legend-color" style={{ background: '#60a5fa' }}></span>
-                        Normal
-                    </div>
+                    {isMumbaiScenario ? (
+                        <>
+                            <div className="legend-item">
+                                <span className="legend-color" style={{ background: '#FEE2E2', border: '2px solid #E02424' }}></span>
+                                Flooded Zone
+                            </div>
+                            <div className="legend-item">
+                                <span className="legend-color" style={{ background: '#D1FAE5', border: '2px solid #057A55' }}></span>
+                                Safe Shelter
+                            </div>
+                            <div className="legend-item">
+                                <span className="legend-color" style={{ background: '#DBEAFE', border: '2px solid #1A56DB' }}></span>
+                                Transit Node
+                            </div>
+                            <div className="legend-item">
+                                <span className="legend-color" style={{ background: '#D97706' }}></span>
+                                Bottleneck
+                            </div>
+                            <div className="legend-item">
+                                <span className="legend-color" style={{ background: '#9CA3AF', borderStyle: 'dashed' }}></span>
+                                Blocked Road
+                            </div>
+                            <div className="legend-item">
+                                <span className="legend-color" style={{ background: '#057A55' }}></span>
+                                Active Flow
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="legend-item">
+                                <span className="legend-color" style={{ background: '#057A55' }}></span>
+                                Source
+                            </div>
+                            <div className="legend-item">
+                                <span className="legend-color" style={{ background: '#E02424' }}></span>
+                                Sink
+                            </div>
+                            <div className="legend-item">
+                                <span className="legend-color" style={{ background: '#1A56DB' }}></span>
+                                Aug. Path
+                            </div>
+                            <div className="legend-item">
+                                <span className="legend-color" style={{ background: '#D97706' }}></span>
+                                Bottleneck
+                            </div>
+                            <div className="legend-item">
+                                <span className="legend-color" style={{ background: '#E02424', borderStyle: 'dashed' }}></span>
+                                Min-Cut
+                            </div>
+                            <div className="legend-item">
+                                <span className="legend-color" style={{ background: '#93C5FD' }}></span>
+                                Normal
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
         </div>

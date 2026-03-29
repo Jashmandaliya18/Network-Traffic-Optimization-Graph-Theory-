@@ -4,60 +4,113 @@ import dagre from 'cytoscape-dagre';
 
 cytoscape.use(dagre);
 
+// Light theme Cytoscape stylesheet
 const BASE_STYLE = [
     {
         selector: 'node',
         style: {
-            'background-color': '#1a2744',
-            'border-color': '#3855a0',
+            'background-color': '#DBEAFE',
+            'border-color': '#1A56DB',
             'border-width': 2,
             label: 'data(label)',
-            color: '#e8edf5',
+            color: '#1E3A8A',
             'text-valign': 'center',
             'text-halign': 'center',
-            'font-size': '13px',
+            'font-size': '14px',
             'font-weight': 'bold',
-            'font-family': 'JetBrains Mono, monospace',
-            width: 44,
-            height: 44,
-            'text-outline-color': '#1a2744',
+            'font-family': 'Inter, sans-serif',
+            width: 56,
+            height: 56,
+            'text-outline-color': '#DBEAFE',
             'text-outline-width': 2,
             'transition-property': 'border-color, border-width, background-color',
             'transition-duration': '0.25s',
         },
     },
+    // Flooded zone nodes
+    {
+        selector: 'node.flooded',
+        style: {
+            'background-color': '#FEE2E2',
+            'border-color': '#E02424',
+            'border-width': 3,
+            color: '#991B1B',
+            'text-outline-color': '#FEE2E2',
+            width: 60,
+            height: 60,
+        },
+    },
+    // Shelter nodes
+    {
+        selector: 'node.shelter',
+        style: {
+            'background-color': '#D1FAE5',
+            'border-color': '#057A55',
+            'border-width': 3,
+            color: '#065F46',
+            'text-outline-color': '#D1FAE5',
+            width: 60,
+            height: 60,
+        },
+    },
+    // Transit nodes
+    {
+        selector: 'node.transit',
+        style: {
+            'background-color': '#DBEAFE',
+            'border-color': '#1A56DB',
+            'border-width': 2,
+            color: '#1E3A8A',
+            'text-outline-color': '#DBEAFE',
+        },
+    },
+    // Super nodes (hidden)
+    {
+        selector: 'node.super-node',
+        style: {
+            width: 1,
+            height: 1,
+            opacity: 0,
+            label: '',
+        },
+    },
+    // Source node (regular scenarios)
     {
         selector: 'node.source',
         style: {
-            'background-color': '#064e3b',
-            'border-color': '#10b981',
+            'background-color': '#D1FAE5',
+            'border-color': '#057A55',
             'border-width': 3,
-            'background-opacity': 0.9,
+            color: '#065F46',
+            'text-outline-color': '#D1FAE5',
         },
     },
+    // Sink node (regular scenarios)
     {
         selector: 'node.sink',
         style: {
-            'background-color': '#7f1d1d',
-            'border-color': '#f87171',
+            'background-color': '#FEE2E2',
+            'border-color': '#E02424',
             'border-width': 3,
-            'background-opacity': 0.9,
+            color: '#991B1B',
+            'text-outline-color': '#FEE2E2',
         },
     },
+    // Edge base
     {
         selector: 'edge',
         style: {
             width: 2,
-            'line-color': '#3855a0',
-            'target-arrow-color': '#3855a0',
+            'line-color': '#93C5FD',
+            'target-arrow-color': '#93C5FD',
             'target-arrow-shape': 'triangle',
             'curve-style': 'bezier',
             label: 'data(label)',
-            color: '#94a3b8',
+            color: '#6B7280',
             'font-size': '11px',
-            'font-family': 'JetBrains Mono, monospace',
+            'font-family': 'Inter, sans-serif',
             'font-weight': '500',
-            'text-background-color': '#0a0f1a',
+            'text-background-color': '#F4F6F9',
             'text-background-opacity': 0.9,
             'text-background-padding': '3px',
             'text-background-shape': 'roundrectangle',
@@ -66,50 +119,74 @@ const BASE_STYLE = [
             'transition-duration': '0.25s',
         },
     },
+    // Virtual edges (hidden)
+    {
+        selector: 'edge.virtual-edge',
+        style: {
+            opacity: 0,
+            label: '',
+        },
+    },
+    // Blocked edges
+    {
+        selector: 'edge.blocked-edge',
+        style: {
+            'line-color': '#D1D5DB',
+            'target-arrow-color': '#D1D5DB',
+            'line-style': 'dashed',
+            width: 1,
+            color: '#9CA3AF',
+        },
+    },
+    // Edge with flow
     {
         selector: 'edge.has-flow',
         style: {
-            'line-color': '#60a5fa',
-            'target-arrow-color': '#60a5fa',
-            width: 2.5,
-            color: '#e8edf5',
+            'line-color': '#057A55',
+            'target-arrow-color': '#057A55',
+            width: 3,
+            color: '#374151',
         },
     },
+    // Augmenting path highlight
     {
         selector: 'edge.path-highlight',
         style: {
-            'line-color': '#38bdf8',
-            'target-arrow-color': '#38bdf8',
+            'line-color': '#1A56DB',
+            'target-arrow-color': '#1A56DB',
             width: 4,
             'z-index': 10,
-            color: '#38bdf8',
+            color: '#1A56DB',
         },
     },
+    // Bottleneck edge
     {
         selector: 'edge.bottleneck',
         style: {
-            'line-color': '#fbbf24',
-            'target-arrow-color': '#fbbf24',
+            'line-color': '#D97706',
+            'target-arrow-color': '#D97706',
             width: 5,
             'z-index': 11,
-            color: '#fbbf24',
+            color: '#D97706',
         },
     },
+    // Min-cut edges
     {
         selector: 'edge.min-cut',
         style: {
-            'line-color': '#f87171',
-            'target-arrow-color': '#f87171',
+            'line-color': '#E02424',
+            'target-arrow-color': '#E02424',
             width: 4,
             'line-style': 'dashed',
             'z-index': 12,
-            color: '#f87171',
+            color: '#E02424',
         },
     },
+    // Path nodes highlight
     {
         selector: 'node.path-node',
         style: {
-            'border-color': '#38bdf8',
+            'border-color': '#1A56DB',
             'border-width': 3,
         },
     },
@@ -125,9 +202,22 @@ export default function GraphCanvas({
     minCutEdges,
     finalFlow,
     algorithmDone,
+    isMumbaiScenario,
+    nodeMetadata,
 }) {
     const containerRef = useRef(null);
     const cyRef = useRef(null);
+
+    // Build a lookup map for node metadata
+    const nodeMetaMap = useMemo(() => {
+        const map = {};
+        if (nodeMetadata && nodeMetadata.length > 0) {
+            nodeMetadata.forEach((n) => {
+                map[n.id] = n;
+            });
+        }
+        return map;
+    }, [nodeMetadata]);
 
     const structureKey = useMemo(
         () =>
@@ -141,19 +231,33 @@ export default function GraphCanvas({
     useEffect(() => {
         if (!containerRef.current) return;
 
-        const cyNodes = nodes.map((n) => ({
-            data: { id: n, label: n },
-        }));
+        const cyNodes = nodes.map((n) => {
+            const meta = nodeMetaMap[n];
+            let displayLabel = n;
+            if (meta) {
+                displayLabel = meta.label || n;
+            }
+            return {
+                data: { id: n, label: displayLabel },
+            };
+        });
 
-        const cyEdges = edges.map((e, i) => ({
-            data: {
-                id: `e${i}`,
-                source: e.source,
-                target: e.target,
-                label: `0/${e.capacity}`,
-                edgeKey: `${e.source}->${e.target}`,
-            },
-        }));
+        const cyEdges = edges.map((e, i) => {
+            const roadLabel = isMumbaiScenario && e.roadName
+                ? `${e.roadName}: 0/${e.capacity}`
+                : `0/${e.capacity}`;
+            return {
+                data: {
+                    id: `e${i}`,
+                    source: e.source,
+                    target: e.target,
+                    label: roadLabel,
+                    edgeKey: `${e.source}->${e.target}`,
+                    roadType: e.roadType || '',
+                    capacity: e.capacity,
+                },
+            };
+        });
 
         const cy = cytoscape({
             container: containerRef.current,
@@ -162,17 +266,56 @@ export default function GraphCanvas({
             layout: {
                 name: nodes.length > 0 ? 'dagre' : 'grid',
                 rankDir: 'LR',
-                spacingFactor: 1.6,
+                spacingFactor: 2.0,
+                rankSep: 120,
+                nodeSep: 80,
                 nodeDimensionsIncludeLabels: true,
             },
             userZoomingEnabled: true,
             userPanningEnabled: true,
             boxSelectionEnabled: false,
-            minZoom: 0.3,
-            maxZoom: 3,
+            wheelSensitivity: 0.3,
+            minZoom: 0.2,
+            maxZoom: 4,
         });
 
         cyRef.current = cy;
+
+        // Fit graph to viewport with padding after layout
+        cy.ready(() => {
+            setTimeout(() => {
+                cy.fit(undefined, 40);
+            }, 100);
+        });
+
+        // Apply node type classes for Mumbai scenario
+        if (isMumbaiScenario) {
+            cy.nodes().forEach((node) => {
+                const meta = nodeMetaMap[node.id()];
+                if (meta) {
+                    if (meta.type === 'super') {
+                        node.addClass('super-node');
+                    } else if (meta.type === 'flooded') {
+                        node.addClass('flooded');
+                    } else if (meta.type === 'shelter') {
+                        node.addClass('shelter');
+                    } else if (meta.type === 'transit') {
+                        node.addClass('transit');
+                    }
+                }
+            });
+
+            // Hide virtual edges and mark blocked edges
+            cy.edges().forEach((edge) => {
+                const roadType = edge.data('roadType');
+                const capacity = edge.data('capacity');
+                if (roadType === 'virtual') {
+                    edge.addClass('virtual-edge');
+                } else if (capacity === 0) {
+                    edge.addClass('blocked-edge');
+                }
+            });
+        }
 
         return () => {
             cy.destroy();
@@ -180,21 +323,23 @@ export default function GraphCanvas({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [structureKey]);
 
-    // Update node classes for source/sink
+    // Update node classes for source/sink (regular scenarios)
     useEffect(() => {
         const cy = cyRef.current;
         if (!cy) return;
 
-        cy.nodes().removeClass('source sink');
-        if (source) {
-            const sNode = cy.getElementById(source);
-            if (sNode.length) sNode.addClass('source');
+        if (!isMumbaiScenario) {
+            cy.nodes().removeClass('source sink');
+            if (source) {
+                const sNode = cy.getElementById(source);
+                if (sNode.length) sNode.addClass('source');
+            }
+            if (sink) {
+                const tNode = cy.getElementById(sink);
+                if (tNode.length) tNode.addClass('sink');
+            }
         }
-        if (sink) {
-            const tNode = cy.getElementById(sink);
-            if (tNode.length) tNode.addClass('sink');
-        }
-    }, [source, sink, structureKey]);
+    }, [source, sink, structureKey, isMumbaiScenario]);
 
     // Update labels and highlights
     useEffect(() => {
@@ -212,11 +357,23 @@ export default function GraphCanvas({
                         : 0;
             const cyEdge = cy.getElementById(`e${i}`);
             if (cyEdge.length) {
-                cyEdge.data('label', `${flowVal}/${e.capacity}`);
-                if (flowVal > 0) {
+                // Build label
+                const label = isMumbaiScenario && e.roadName
+                    ? `${e.roadName}: ${flowVal}/${e.capacity}`
+                    : `${flowVal}/${e.capacity}`;
+                cyEdge.data('label', label);
+
+                if (e.roadType === 'virtual') {
+                    cyEdge.addClass('virtual-edge');
+                } else if (e.capacity === 0) {
+                    cyEdge.addClass('blocked-edge');
+                    cyEdge.removeClass('has-flow');
+                } else if (flowVal > 0) {
                     cyEdge.addClass('has-flow');
+                    cyEdge.removeClass('blocked-edge');
                 } else {
                     cyEdge.removeClass('has-flow');
+                    cyEdge.removeClass('blocked-edge');
                 }
             }
         });
@@ -224,14 +381,16 @@ export default function GraphCanvas({
         // Clear highlights
         cy.elements().removeClass('path-highlight bottleneck min-cut path-node');
 
-        // Re-apply source/sink
-        if (source) {
-            const sNode = cy.getElementById(source);
-            if (sNode.length) sNode.addClass('source');
-        }
-        if (sink) {
-            const tNode = cy.getElementById(sink);
-            if (tNode.length) tNode.addClass('sink');
+        // Re-apply source/sink for regular scenarios
+        if (!isMumbaiScenario) {
+            if (source) {
+                const sNode = cy.getElementById(source);
+                if (sNode.length) sNode.addClass('source');
+            }
+            if (sink) {
+                const tNode = cy.getElementById(sink);
+                if (tNode.length) tNode.addClass('sink');
+            }
         }
 
         // Highlight current augmenting path
@@ -267,7 +426,7 @@ export default function GraphCanvas({
                 });
             });
         }
-    }, [currentStep, edges, source, sink, showMinCut, minCutEdges, algorithmDone, finalFlow]);
+    }, [currentStep, edges, source, sink, showMinCut, minCutEdges, algorithmDone, finalFlow, isMumbaiScenario]);
 
     return (
         <div
@@ -275,8 +434,11 @@ export default function GraphCanvas({
             style={{
                 width: '100%',
                 height: '100%',
-                borderRadius: '16px',
-                background: '#060b18',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                borderRadius: '8px',
+                background: '#F4F6F9',
             }}
         />
     );
